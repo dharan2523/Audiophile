@@ -80,10 +80,31 @@ jobs:
         run: test -s "release-artifact/${{ needs.build.outputs.apk_name }}"
 
       - name: Create GitHub Release and attach APK
+        uses: actions/github-script@v7
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "${GITHUB_REF_NAME}" \
-            "release-artifact/${{ needs.build.outputs.apk_name }}" \
-            --title "Audiophile ${GITHUB_REF_NAME}" \
-            --generate-notes
+          APK_NAME: ${{ needs.build.outputs.apk_name }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const assetName = process.env.APK_NAME;
+            const assetPath = path.join('release-artifact', assetName);
+            const release = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: context.ref.replace('refs/tags/', ''),
+              name: `Audiophile ${context.ref.replace('refs/tags/', '')}`,
+              generate_release_notes: true
+            });
+            const asset = fs.readFileSync(assetPath);
+            await github.rest.repos.uploadReleaseAsset({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.data.id,
+              name: assetName,
+              data: asset,
+              headers: {
+                'content-type': 'application/vnd.android.package-archive',
+                'content-length': asset.length
+              }
+            });
