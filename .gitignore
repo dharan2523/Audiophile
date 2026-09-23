@@ -1,0 +1,10 @@
+.gradle/
+.idea/
+build/
+app/build/
+*.log
+local.properties
+*.jks
+*.keystore
+*.p12
+*.pem
