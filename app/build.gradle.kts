@@ -14,6 +14,10 @@ val dropboxClientId = providers.gradleProperty("audiophileDropboxClientId").orNu
     ?.trim()
     ?.takeIf { it.isNotEmpty() }
     ?: localProperties.getProperty("audiophileDropboxClientId")?.trim().orEmpty()
+val releaseKeystorePath = providers.environmentVariable("ANDROID_KEYSTORE_PATH").orNull
+val releaseKeystorePassword = providers.environmentVariable("KEYSTORE_PASSWORD").orNull
+val releaseKeyAlias = providers.environmentVariable("KEY_ALIAS").orNull
+val releaseKeyPassword = providers.environmentVariable("KEY_PASSWORD").orNull
 
 android {
     namespace = "com.audiophile"
@@ -30,6 +34,16 @@ android {
     val telegramApiId = providers.gradleProperty("audiophileTelegramApiId").orNull ?: "0"
     val telegramApiHash = providers.gradleProperty("audiophileTelegramApiHash").orNull ?: ""
     buildFeatures { compose = true; buildConfig = true }
+    signingConfigs {
+        if (releaseKeystorePath != null && releaseKeystorePassword != null && releaseKeyAlias != null && releaseKeyPassword != null) {
+            create("ciRelease") {
+                storeFile = file(releaseKeystorePath)
+                storePassword = releaseKeystorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
     buildTypes {
         getByName("debug") {
             buildConfigField("String", "DROPBOX_CLIENT_ID", "\"$dropboxClientId\"")
@@ -37,6 +51,7 @@ android {
             buildConfigField("String", "TELEGRAM_API_HASH", "\"$telegramApiHash\"")
         }
         getByName("release") {
+            signingConfigs.findByName("ciRelease")?.let { signingConfig = it }
             buildConfigField("String", "DROPBOX_CLIENT_ID", "\"$dropboxClientId\"")
             buildConfigField("int", "TELEGRAM_API_ID", telegramApiId)
             buildConfigField("String", "TELEGRAM_API_HASH", "\"$telegramApiHash\"")
